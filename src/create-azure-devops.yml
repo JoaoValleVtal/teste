@@ -1,0 +1,103 @@
+trigger:
+  - none
+
+parameters:
+- name: debug
+  displayName: 'Debug'
+  type: boolean
+  default: false
+  values:
+  - true
+  - false
+
+- name: project_name
+  displayName: 'Project Name'
+  type: string
+  default: 'teste-pxbank'
+
+- name: repo_name_src
+  displayName: 'Repo Name'
+  type: string
+  default: 'teste-pxbank'
+
+- name: override_yaml
+  displayName: 'Override yaml'
+  type: boolean
+  default: false
+  values:
+  - true
+  - false
+
+- name: env_name
+  displayName: 'Environment Names'
+  type: object
+  default:
+    project_config:
+      name: MyProjectName # Nome do Projeto
+      template: agile
+      groups: # Lista ou mapa de grupos
+        - group_name: Admins
+          members:
+            - name: JohnDoe
+            - name: JaneSmith
+        - group_name: Developers
+          members:
+            - name: PeterPan
+
+      repositories: # Lista de Repositórios
+        - repo_name: frontend-app
+          environments: # Lista de Ambientes por Repositório
+            - env_name: DEV
+              approver: dev_team_approvers
+            - env_name: UAT
+              approver: qa_team_approvers
+          variable_groups: # Lista de Grupos de Variáveis por Repositório
+            - group_name: CommonVariables
+              variables:
+                - variable_name: API_URL_BASE
+                  variable_value: "https://dev.api.com"
+                - variable_name: CONNECTION_TIMEOUT
+                  variable_value: 30
+        - repo_name: backend-service
+          environments:
+            - env_name: PROD
+              approver: prod_release_approvers
+          variable_groups:
+            - group_name: Secrets
+              variables:
+                - variable_name: DB_USER
+                  variable_value: "service_account"
+                - variable_name: DB_PASS_KEY
+                  variable_value: "$(my-key-vault-secret)"
+
+variables:
+  - group: prd
+  - name: system.debug
+    value: ${{ parameters.debug }}
+
+jobs:
+- job: run_azure_create
+  condition: always()
+  displayName: Run Azure Devops Terraform Foundation
+  timeoutInMinutes: 30
+  cancelTimeoutInMinutes: 1
+  pool:
+    name: 'Default'
+  workspace:
+    clean: all
+
+  steps:
+  - checkout: self
+    clean: true
+
+  - task: Bash@3
+    displayName: Lista Variaveis de Ambiente
+    condition: succeeded()
+    inputs:
+      targetType: 'inline'
+      script: |
+        echo "---------------------"
+        for var in $(compgen -e); do
+          echo $var=${!var};
+        done
+        echo "---------------------"
